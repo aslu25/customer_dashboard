@@ -1,30 +1,22 @@
-version: '3.8'
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/postgres
+import time
+import psycopg2
+import os
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    stdin_open: true
-    tty: true
-
-  db:
-    image: postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
+RETRIES = 10
+while RETRIES > 0:
+    try:
+        conn = psycopg2.connect(
+            dbname=os.getenv("POSTGRES_DB", "mydatabase"),
+            user=os.getenv("POSTGRES_USER", "user"),
+            password=os.getenv("POSTGRES_PASSWORD", "password"),
+            host="db"
+        )
+        print("Database is ready!")
+        break
+    except psycopg2.OperationalError:
+        print("Database not ready, waiting...")
+        RETRIES -= 1
+        time.sleep(3)
+else:
+    print("Database connection failed after retries.")
+    exit(1)
