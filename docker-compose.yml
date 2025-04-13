@@ -1,22 +1,26 @@
-import time
-import psycopg2
-import os
+version: '3.9'
 
-RETRIES = 10
-while RETRIES > 0:
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("POSTGRES_DB", "mydatabase"),
-            user=os.getenv("POSTGRES_USER", "user"),
-            password=os.getenv("POSTGRES_PASSWORD", "password"),
-            host="db"
-        )
-        print("Database is ready!")
-        break
-    except psycopg2.OperationalError:
-        print("Database not ready, waiting...")
-        RETRIES -= 1
-        time.sleep(3)
-else:
-    print("Database connection failed after retries.")
-    exit(1)
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/mydatabase
